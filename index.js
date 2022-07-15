@@ -90,7 +90,7 @@ app.post("/choice", async (req,res) => {
         if(!findPoll) {
           return res.status(404).send('Enquete não existente');
         }
-        const expiredDate = findPoll.expiredAt
+        const expiredDate = findPoll.expireAt;
     
         const isExpired = dayjs().isAfter(expiredDate, 'days');
         if(isExpired) {
@@ -173,7 +173,6 @@ app.get("/poll/:id/result", async (req,res) => {
     try{
         const choices = await db.collection("choice").find({ pollId: id }).toArray();
         const votes = await db.collection("votes").find({}).toArray();
-        console.log(choices);
 
         const choicesId = choices.map((choice) => choice._id.toString());
         const votesFiltered = votes.filter((vote) => choicesId.includes(vote.choiceId));
