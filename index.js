@@ -35,7 +35,74 @@ const choiceSchema = joi.object({
     pollId: joi.string().required()
 });
 
+// Requisições POST poll, choice
 
+
+app.post("/poll", async (req,res) => {
+    let { title, expireAt } = req.body;
+    const {error} = pollSchema.validate(req.body);
+
+    if (error) {
+    res.status(422);
+    }
+
+    if (!title) {
+        res.status(422).send("Escreva o título da enquete");
+    }
+
+    if (!expireAt) {
+        expireAt = (dayjs().add(30,"day").format("DD-MM-YYYY HH:mm"));
+    }
+
+
+    try {
+        const pollExists = await db.collection("polls").findOne({ title: req.body.title });
+        if (pollExists) {
+            return res.sendStatus(409);
+        }
+
+        await db
+        .collection("polls")
+        .insertOne({title: title, expireAt: expireAt});
+
+        res.status(201).send("Enquete criada com sucesso!");
+    } catch (err) {
+        console.log(err);
+        res.status(500).send(error.message);
+    }
+});
+
+app.post("/choice", async (req,res) => {
+    const {title, pollId} = req.body;
+    const {error} = choiceSchema.validate(req.body);
+
+      try {
+        const findPoll = await db.collection('polls').findOne({ _id: new ObjectId(pollId) });
+
+        if(!findPoll) {
+          return res.status(404).send('Enquete não existente');
+        }
+        const expiredDate = findPoll.expiredAt
+    
+        const isExpired = dayjs().isAfter(expiredDate, 'days');
+        if(isExpired) {
+          return res.status(403).send('Enquete expirada')
+        }
+    
+        const findChoice = await db.collection('choice').findOne({ title: title });
+    
+        if(findChoice) {
+          return res.status(409).send('Opção de voto já existente');
+        }
+    
+        await db.collection('choice').insertOne({title: title, pollId:pollId});
+    
+        res.status(201);
+      } catch(err){
+        console.log(err)
+        res.status(500).send(err.message);
+      }
+})
 
 
 const port = process.env.PORT || 5000;
