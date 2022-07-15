@@ -142,7 +142,7 @@ app.post("/choice/:id/vote", async (req,res) => {
     }
 })
 
-//Requisições GET poll e poll/:id/choice 
+//Requisições GET poll, poll/:id/choice e poll/:id/result
 
 app.get("/poll", async (req,res) => {
     try {
@@ -164,6 +164,48 @@ app.get("/poll/:id/choice", async (req,res) => {
         } catch {
             return res.sendStatus(500);
         }
+})
+
+app.get("/poll/:id/result", async (req,res) => {
+    const { id } = req.params;
+
+
+    try{
+        const choices = await db.collection("choice").find({ pollId: id }).toArray();
+        const votes = await db.collection("votes").find({}).toArray();
+        console.log(choices);
+
+        const choicesId = choices.map((choice) => choice._id.toString());
+        const votesFiltered = votes.filter((vote) => choicesId.includes(vote.choiceId));
+        const votesFilteredId = votesFiltered.map((vote) => vote.choiceId);
+
+        function getWinner(votes){
+            return votes.sort((a,b) =>
+                  votes.filter(vote => vote===a).length
+                - votes.filter(vote => vote===b).length
+            ).pop();
+        }
+
+        const mostVotedId = getWinner(votesFilteredId);
+
+        const numVotes = votesFiltered.filter((vote) => vote.choiceId === mostVotedId).length
+
+        const mostVoted = choices.filter((choice) => choice._id.toString() === mostVotedId)
+
+        const poll = await db.collection("polls").findOne({ _id: ObjectId(id) })
+
+
+        const result = {
+            title: mostVoted[0].title,
+            votes: numVotes
+        }
+
+        res.send({ ...poll, result });
+
+    }catch(err){
+        console.log(err);
+        res.sendStatus(500);
+    }
 })
 
 
