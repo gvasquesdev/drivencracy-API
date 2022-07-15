@@ -35,7 +35,7 @@ const choiceSchema = joi.object({
     pollId: joi.string().required()
 });
 
-// Requisições POST poll, choice
+// Requisições POST poll, choice e choice/:id/vote
 
 
 app.post("/poll", async (req,res) => {
@@ -76,6 +76,14 @@ app.post("/choice", async (req,res) => {
     const {title, pollId} = req.body;
     const {error} = choiceSchema.validate(req.body);
 
+    if (error) {
+        res.status(422);
+        }
+
+    if (!title || !pollId) {
+        res.status(422).send("Está faltando o título ou o Id da enquete");
+    }
+
       try {
         const findPoll = await db.collection('polls').findOne({ _id: new ObjectId(pollId) });
 
@@ -102,6 +110,36 @@ app.post("/choice", async (req,res) => {
         console.log(err)
         res.status(500).send(err.message);
       }
+})
+
+app.post("/choice/:id/vote", async (req,res) => {
+    let { id } = req.params;
+
+    const vote = {
+        createdAt: dayjs().format('YYYY-MM-DD hh:mm'),
+        choiceId: id
+    }
+
+      const choice = await db.collection("choice").findOne({ _id: ObjectId(id) });
+      if (!choice) {
+          return res.sendStatus(404);
+      }
+
+      const poll = await db.collection("polls").findOne({ _id: ObjectId(choice.pollId) });
+
+      if (dayjs().diff(dayjs(poll.expireAt))>0) {
+          return res.sendStatus(403);
+      }
+
+    try {
+        await db.collection("votes").insertOne({ ...vote });
+
+        res.status(201).send("Voto registrado com sucesso");
+      
+    } catch (err) {
+        console.log(err);
+        res.send(500);
+    }
 })
 
 
