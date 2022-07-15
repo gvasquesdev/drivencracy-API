@@ -142,6 +142,30 @@ app.post("/choice/:id/vote", async (req,res) => {
     }
 })
 
+//Requisições GET poll e poll/:id/choice 
+
+app.get("/poll", async (req,res) => {
+    try {
+        const getPolls = await db.collection("polls").find({}).toArray();
+
+        res.send({ getPolls })
+    } catch {
+        return res.sendStatus(500);
+    }
+});
+
+app.get("/poll/:id/choice", async (req,res) => {
+        const { id } = req.params;
+    
+        try {
+            const findChoices = await db.collection("choice").find({ pollId: id }).toArray();
+    
+            res.status(201).send(findChoices);
+        } catch {
+            return res.sendStatus(500);
+        }
+})
+
 
 const port = process.env.PORT || 5000;
 app.listen(port, () => {
